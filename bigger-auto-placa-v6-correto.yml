@@ -1,0 +1,79 @@
+name: BIGGER AUTO PLACA v6 CORRETO
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar repositório
+        uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar SDK 35
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Preparar SOMENTE projeto v6
+        shell: bash
+        run: |
+          rm -rf "$RUNNER_TEMP/bigger-auto-v6"
+          mkdir -p "$RUNNER_TEMP/bigger-auto-v6"
+
+          if [ -f "BIGGER-AUTO-PLACA-v6-PROJETO.zip" ]; then
+            echo "Usando ZIP exato BIGGER-AUTO-PLACA-v6-PROJETO.zip"
+            unzip -o "BIGGER-AUTO-PLACA-v6-PROJETO.zip" -d "$RUNNER_TEMP/bigger-auto-v6"
+            PROJECT="$RUNNER_TEMP/bigger-auto-v6/BIGGER-AUTO-PLACA-v6-PROJETO"
+          elif [ -f "BIGGER-AUTO-PLACA-v6-PROJETO/settings.gradle.kts" ] || [ -f "BIGGER-AUTO-PLACA-v6-PROJETO/settings.gradle" ]; then
+            echo "Usando pasta exata BIGGER-AUTO-PLACA-v6-PROJETO"
+            cp -R "BIGGER-AUTO-PLACA-v6-PROJETO" "$RUNNER_TEMP/bigger-auto-v6/"
+            PROJECT="$RUNNER_TEMP/bigger-auto-v6/BIGGER-AUTO-PLACA-v6-PROJETO"
+          else
+            echo "ERRO: envie BIGGER-AUTO-PLACA-v6-PROJETO.zip na raiz do repositório."
+            exit 1
+          fi
+
+          if [ ! -f "$PROJECT/settings.gradle.kts" ] && [ ! -f "$PROJECT/settings.gradle" ]; then
+            echo "ERRO: settings.gradle não encontrado dentro do projeto v6."
+            find "$RUNNER_TEMP/bigger-auto-v6" -maxdepth 4 -type f | sort
+            exit 1
+          fi
+
+          echo "PROJECT=$PROJECT" >> "$GITHUB_ENV"
+
+      - name: Confirmar versão correta
+        shell: bash
+        run: |
+          grep -q 'CONFIGURAR API GRATUITA / TESTE' "$PROJECT/app/src/main/java/com/grupobigger/biggerauto/MainActivity.java"
+          grep -q 'api.datacenterapis.com.br/v1/placa/' "$PROJECT/app/src/main/java/com/grupobigger/biggerauto/MainActivity.java"
+          grep -q '• v6' "$PROJECT/app/src/main/java/com/grupobigger/biggerauto/MainActivity.java"
+          echo "Projeto v6 correto confirmado."
+
+      - name: Gerar APK v6
+        shell: bash
+        run: |
+          cd "$PROJECT"
+          gradle :app:assembleDebug --no-daemon --stacktrace
+
+      - name: Publicar APK v6
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIGGER-AUTO-PLACA-v6-CORRETO-APK
+          path: ${{ env.PROJECT }}/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
