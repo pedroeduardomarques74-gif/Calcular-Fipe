@@ -1,0 +1,129 @@
+name: BIGGER AUTO Premium - Gerar APK v3
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Baixar projeto
+        uses: actions/checkout@v4
+
+      - name: Configurar Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Configurar Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Instalar Android SDK 35
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null || true
+          sdkmanager "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Configurar Gradle 8.9
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      - name: Preparar projeto
+        shell: bash
+        run: |
+          echo "Arquivos na raiz:"
+          ls -la
+
+          # Se o projeto Android já estiver descompactado, não faz nada.
+          if find . -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) | grep -q .; then
+            echo "Projeto Android já está descompactado."
+            exit 0
+          fi
+
+          # Se houver ZIP do BIGGER AUTO no repositório, descompacta automaticamente.
+          ZIP_FILE="$(find . -maxdepth 2 -type f \( -iname '*BIGGER*AUTO*.zip' -o -iname '*bigger*auto*.zip' \) | head -n 1)"
+
+          if [ -n "$ZIP_FILE" ]; then
+            echo "ZIP encontrado: $ZIP_FILE"
+            mkdir -p extracted_project
+            unzip -o "$ZIP_FILE" -d extracted_project
+          else
+            echo "Nenhum ZIP BIGGER AUTO encontrado."
+          fi
+
+          echo "Estrutura após preparação:"
+          find . -maxdepth 4 -type f | sort | head -n 300
+
+      - name: Localizar projeto Android
+        id: localizar
+        shell: bash
+        run: |
+          SETTINGS="$(find . -type f \( -name "settings.gradle" -o -name "settings.gradle.kts" \) \
+            -not -path './.git/*' | head -n 1)"
+
+          if [ -z "$SETTINGS" ]; then
+            echo "=================================================="
+            echo "ERRO: Projeto Android não encontrado."
+            echo "Envie o projeto completo OU o ZIP do BIGGER AUTO"
+            echo "para a raiz do repositório."
+            echo "=================================================="
+            find . -maxdepth 5 -type f | sort
+            exit 1
+          fi
+
+          PROJECT_DIR="$(dirname "$SETTINGS")"
+          echo "project_dir=$PROJECT_DIR" >> "$GITHUB_OUTPUT"
+          echo "Projeto localizado em: $PROJECT_DIR"
+          ls -la "$PROJECT_DIR"
+
+      - name: Tornar Gradle Wrapper executável
+        working-directory: ${{ steps.localizar.outputs.project_dir }}
+        shell: bash
+        run: |
+          if [ -f "./gradlew" ]; then
+            chmod +x ./gradlew
+          fi
+
+      - name: Gerar APK Debug
+        working-directory: ${{ steps.localizar.outputs.project_dir }}
+        env:
+          VEHICLE_API_BASE: ${{ secrets.VEHICLE_API_BASE }}
+          VEHICLE_API_KEY: ${{ secrets.VEHICLE_API_KEY }}
+        shell: bash
+        run: |
+          if [ -f "./gradlew" ]; then
+            ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          else
+            gradle :app:assembleDebug --no-daemon --stacktrace
+          fi
+
+      - name: Localizar APK
+        if: success()
+        id: apk
+        shell: bash
+        run: |
+          APK="$(find . -type f -path '*/build/outputs/apk/debug/*.apk' | head -n 1)"
+          if [ -z "$APK" ]; then
+            echo "ERRO: Compilação terminou, mas nenhum APK foi encontrado."
+            find . -type f -name "*.apk" | sort
+            exit 1
+          fi
+
+          echo "apk_path=$APK" >> "$GITHUB_OUTPUT"
+          echo "APK encontrado: $APK"
+
+      - name: Publicar APK
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIGGER-AUTO-PREMIUM-APK
+          path: ${{ steps.apk.outputs.apk_path }}
+          if-no-files-found: error
+          retention-days: 30
