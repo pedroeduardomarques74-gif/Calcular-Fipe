@@ -1,0 +1,283 @@
+name: BIGGER PRO - Login Fix V12 Fire Stick Corrigido
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget zipalign apksigner python3
+          wget -q https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -O apktool.jar
+
+      - name: Reassemble APK
+        run: |
+          cat biggerpro.apk.part00 biggerpro.apk.part01 > biggerpro.apk
+          ls -lh biggerpro.apk
+
+      - name: Decode APK
+        run: java -jar apktool.jar d -f biggerpro.apk -o decoded
+
+      - name: Apply V4 patch
+        run: |
+          cat > patch_v4.b64 <<'EOF'
+          ZnJvbSBwYXRobGliIGltcG9ydCBQYXRoCmltcG9ydCByZQoKcm9vdCA9IFBhdGgoJ2RlY29kZWQnKQptYW5pZmVzdCA9IHJvb3QgLyAnQW5kcm9pZE1hbmlm
+          ZXN0LnhtbCcKdGV4dCA9IG1hbmlmZXN0LnJlYWRfdGV4dChlbmNvZGluZz0ndXRmLTgnLCBlcnJvcnM9J2lnbm9yZScpCmlmICdhbmRyb2lkOnVzZXNDbGVh
+          cnRleHRUcmFmZmljPScgaW4gdGV4dDoKICAgIHRleHQgPSByZS5zdWIocidhbmRyb2lkOnVzZXNDbGVhcnRleHRUcmFmZmljPSJbXiJdKiInLCAnYW5kcm9p
+          ZDp1c2VzQ2xlYXJ0ZXh0VHJhZmZpYz0idHJ1ZSInLCB0ZXh0KQplbHNlOgogICAgdGV4dCA9IHRleHQucmVwbGFjZSgnPGFwcGxpY2F0aW9uICcsICc8YXBw
+          bGljYXRpb24gYW5kcm9pZDp1c2VzQ2xlYXJ0ZXh0VHJhZmZpYz0idHJ1ZSIgJywgMSkKaWYgJ2FuZHJvaWQ6bmV0d29ya1NlY3VyaXR5Q29uZmlnPScgbm90
+          IGluIHRleHQ6CiAgICB0ZXh0ID0gdGV4dC5yZXBsYWNlKCc8YXBwbGljYXRpb24gJywgJzxhcHBsaWNhdGlvbiBhbmRyb2lkOm5ldHdvcmtTZWN1cml0eUNv
+          bmZpZz0iQHhtbC9uZXR3b3JrX3NlY3VyaXR5X2NvbmZpZyIgJywgMSkKbWFuaWZlc3Qud3JpdGVfdGV4dCh0ZXh0LCBlbmNvZGluZz0ndXRmLTgnKQp4bWxf
+          ZGlyID0gcm9vdCAvICdyZXMnIC8gJ3htbCcKeG1sX2Rpci5ta2RpcihwYXJlbnRzPVRydWUsIGV4aXN0X29rPVRydWUpCih4bWxfZGlyIC8gJ25ldHdvcmtf
+          c2VjdXJpdHlfY29uZmlnLnhtbCcpLndyaXRlX3RleHQoJycnPD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0idXRmLTgiPz4KPG5ldHdvcmstc2VjdXJp
+          dHktY29uZmlnPgogICAgPGJhc2UtY29uZmlnIGNsZWFydGV4dFRyYWZmaWNQZXJtaXR0ZWQ9InRydWUiPgogICAgICAgIDx0cnVzdC1hbmNob3JzPgogICAg
+          ICAgICAgICA8Y2VydGlmaWNhdGVzIHNyYz0ic3lzdGVtIiAvPgogICAgICAgICAgICA8Y2VydGlmaWNhdGVzIHNyYz0idXNlciIgLz4KICAgICAgICA8L3Ry
+          dXN0LWFuY2hvcnM+CiAgICA8L2Jhc2UtY29uZmlnPgo8L25ldHdvcmstc2VjdXJpdHktY29uZmlnPgonJycsIGVuY29kaW5nPSd1dGYtOCcpCgpsaXZlID0g
+          cm9vdCAvICdzbWFsaS9hbmRyb2lkeC9saWZlY3ljbGUvTXV0YWJsZUxpdmVEYXRhLnNtYWxpJwpzID0gbGl2ZS5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04
+          JykKcGF0ID0gcmUuY29tcGlsZShyJ1wubWV0aG9kIHB1YmxpYyBzZXRWYWx1ZVwoTGphdmEvbGFuZy9PYmplY3Q7XClWLio/XC5lbmQgbWV0aG9kJywgcmUu
+          UykKcmVwbGFjZW1lbnQgPSAnJycubWV0aG9kIHB1YmxpYyBzZXRWYWx1ZShMamF2YS9sYW5nL09iamVjdDspVgogICAgLmxvY2FscyAyCiAgICAuYW5ub3Rh
+          dGlvbiBzeXN0ZW0gTGRhbHZpay9hbm5vdGF0aW9uL1NpZ25hdHVyZTsKICAgICAgICB2YWx1ZSA9IHsKICAgICAgICAgICAgIihUVDspViIKICAgICAgICB9
+          CiAgICAuZW5kIGFubm90YXRpb24KCiAgICBpbnZva2Utc3RhdGljIHt9LCBMYW5kcm9pZC9vcy9Mb29wZXI7LT5teUxvb3BlcigpTGFuZHJvaWQvb3MvTG9v
+          cGVyOwogICAgbW92ZS1yZXN1bHQtb2JqZWN0IHYwCiAgICBpbnZva2Utc3RhdGljIHt9LCBMYW5kcm9pZC9vcy9Mb29wZXI7LT5nZXRNYWluTG9vcGVyKClM
+          YW5kcm9pZC9vcy9Mb29wZXI7CiAgICBtb3ZlLXJlc3VsdC1vYmplY3QgdjEKICAgIGlmLW5lIHYwLCB2MSwgOmJnX3RocmVhZAogICAgaW52b2tlLXN1cGVy
+          IHtwMCwgcDF9LCBMYW5kcm9pZHgvbGlmZWN5Y2xlL0xpdmVEYXRhOy0+c2V0VmFsdWUoTGphdmEvbGFuZy9PYmplY3Q7KVYKICAgIHJldHVybi12b2lkCgog
+          ICAgOmJnX3RocmVhZAogICAgaW52b2tlLXN1cGVyIHtwMCwgcDF9LCBMYW5kcm9pZHgvbGlmZWN5Y2xlL0xpdmVEYXRhOy0+cG9zdFZhbHVlKExqYXZhL2xh
+          bmcvT2JqZWN0OylWCiAgICByZXR1cm4tdm9pZAouZW5kIG1ldGhvZCcnJwpzMiwgbiA9IHBhdC5zdWJuKHJlcGxhY2VtZW50LCBzLCBjb3VudD0xKQppZiBu
+          ICE9IDE6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCdDb3VsZCBub3QgcGF0Y2ggTXV0YWJsZUxpdmVEYXRhLnNldFZhbHVlJykKbGl2ZS53cml0ZV90ZXh0KHMy
+          LCBlbmNvZGluZz0ndXRmLTgnKQoKY2xpY2sgPSByb290IC8gJ3NtYWxpL2NvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JDUu
+          c21hbGknCnMgPSBjbGljay5yZWFkX3RleHQoZW5jb2Rpbmc9J3V0Zi04JykKb2xkID0gJy5tZXRob2QgcHVibGljIG5hdGl2ZSBvbkNsaWNrKExhbmRyb2lk
+          L3ZpZXcvVmlldzspVlxuLmVuZCBtZXRob2QnCm5ldyA9ICcnJy5tZXRob2QgcHVibGljIG9uQ2xpY2soTGFuZHJvaWQvdmlldy9WaWV3OylWCiAgICAubG9j
+          YWxzIDUKCiAgICBpZ2V0LW9iamVjdCB2MCwgcDAsIExjb20vYW5keWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5BY3Rpdml0eSQ1Oy0+dmFsJGxvYWRp
+          bmdQcm9ncmVzc0JhcjpMYW5kcm9pZC93aWRnZXQvUHJvZ3Jlc3NCYXI7CiAgICBjb25zdC80IHYxLCAweDAKICAgIGludm9rZS12aXJ0dWFsIHt2MCwgdjF9
+          LCBMYW5kcm9pZC92aWV3L1ZpZXc7LT5zZXRWaXNpYmlsaXR5KEkpVgoKICAgIGlnZXQtb2JqZWN0IHYwLCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91
+          aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JDU7LT52YWwkdXNlcm5hbWVFZGl0VGV4dDpMYW5kcm9pZC93aWRnZXQvRWRpdFRleHQ7CiAgICBpbnZva2UtdmlydHVh
+          bCB7djB9LCBMYW5kcm9pZC93aWRnZXQvRWRpdFRleHQ7LT5nZXRUZXh0KClMYW5kcm9pZC90ZXh0L0VkaXRhYmxlOwogICAgbW92ZS1yZXN1bHQtb2JqZWN0
+          IHYwCiAgICBpbnZva2UtdmlydHVhbCB7djB9LCBMamF2YS9sYW5nL09iamVjdDstPnRvU3RyaW5nKClMamF2YS9sYW5nL1N0cmluZzsKICAgIG1vdmUtcmVz
+          dWx0LW9iamVjdCB2MgoKICAgIGlnZXQtb2JqZWN0IHYwLCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JDU7LT52
+          YWwkcGFzc3dvcmRFZGl0VGV4dDpMYW5kcm9pZC93aWRnZXQvRWRpdFRleHQ7CiAgICBpbnZva2UtdmlydHVhbCB7djB9LCBMYW5kcm9pZC93aWRnZXQvRWRp
+          dFRleHQ7LT5nZXRUZXh0KClMYW5kcm9pZC90ZXh0L0VkaXRhYmxlOwogICAgbW92ZS1yZXN1bHQtb2JqZWN0IHYwCiAgICBpbnZva2UtdmlydHVhbCB7djB9
+          LCBMamF2YS9sYW5nL09iamVjdDstPnRvU3RyaW5nKClMamF2YS9sYW5nL1N0cmluZzsKICAgIG1vdmUtcmVzdWx0LW9iamVjdCB2MwoKICAgIGlnZXQtb2Jq
+          ZWN0IHY0LCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JDU7LT50aGlzJDA6TGNvbS9hbmR5aGF4L3ZlZWVwZWVl
+          bi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5OwogICAgbmV3LWluc3RhbmNlIHYwLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZp
+          dHkkU2FmZUxvZ2luOwogICAgaWdldC1vYmplY3QgdjEsIHAwLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkkNTstPnZh
+          bCRsb2FkaW5nUHJvZ3Jlc3NCYXI6TGFuZHJvaWQvd2lkZ2V0L1Byb2dyZXNzQmFyOwogICAgaW52b2tlLWRpcmVjdCB7djAsIHY0LCB2MSwgdjIsIHYzfSwg
+          TGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JFNhZmVMb2dpbjstPjxpbml0PihMY29tL2FuZHloYXgvdmVlZXBlZWVuL3Vp
+          L2xvZ2luL0xvZ2luQWN0aXZpdHk7TGFuZHJvaWQvd2lkZ2V0L1Byb2dyZXNzQmFyO0xqYXZhL2xhbmcvU3RyaW5nO0xqYXZhL2xhbmcvU3RyaW5nOylWCgog
+          ICAgbmV3LWluc3RhbmNlIHYxLCBMamF2YS9sYW5nL1RocmVhZDsKICAgIGludm9rZS1kaXJlY3Qge3YxLCB2MH0sIExqYXZhL2xhbmcvVGhyZWFkOy0+PGlu
+          aXQ+KExqYXZhL2xhbmcvUnVubmFibGU7KVYKICAgIGNvbnN0LXN0cmluZyB2MCwgIkJpZ2dlckxvZ2luV29ya2VyIgogICAgaW52b2tlLXZpcnR1YWwge3Yx
+          LCB2MH0sIExqYXZhL2xhbmcvVGhyZWFkOy0+c2V0TmFtZShMamF2YS9sYW5nL1N0cmluZzspVgogICAgaW52b2tlLXZpcnR1YWwge3YxfSwgTGphdmEvbGFu
+          Zy9UaHJlYWQ7LT5zdGFydCgpVgogICAgcmV0dXJuLXZvaWQKLmVuZCBtZXRob2QnJycKaWYgb2xkIG5vdCBpbiBzOgogICAgcmFpc2UgU3lzdGVtRXhpdCgn
+          Q291bGQgbm90IHBhdGNoIExvZ2luQWN0aXZpdHkkNS5vbkNsaWNrJykKY2xpY2sud3JpdGVfdGV4dChzLnJlcGxhY2Uob2xkLCBuZXcsIDEpLCBlbmNvZGlu
+          Zz0ndXRmLTgnKQoKZWRpdG9yID0gcm9vdCAvICdzbWFsaS9jb20vYW5keWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5BY3Rpdml0eSQ0LnNtYWxpJwpz
+          ID0gZWRpdG9yLnJlYWRfdGV4dChlbmNvZGluZz0ndXRmLTgnKQpvbGQgPSAnLm1ldGhvZCBwdWJsaWMgbmF0aXZlIG9uRWRpdG9yQWN0aW9uKExhbmRyb2lk
+          L3dpZGdldC9UZXh0VmlldztJTGFuZHJvaWQvdmlldy9LZXlFdmVudDspWlxuLmVuZCBtZXRob2QnCm5ldyA9ICcnJy5tZXRob2QgcHVibGljIG9uRWRpdG9y
+          QWN0aW9uKExhbmRyb2lkL3dpZGdldC9UZXh0VmlldztJTGFuZHJvaWQvdmlldy9LZXlFdmVudDspWgogICAgLmxvY2FscyA1CgogICAgY29uc3QvNCB2MCwg
+          MHg2CiAgICBpZi1lcSBwMiwgdjAsIDpkb19sb2dpbgogICAgY29uc3QvNCB2MCwgMHg1CiAgICBpZi1lcSBwMiwgdjAsIDpkb19sb2dpbgogICAgY29uc3Qv
+          NCB2MCwgMHgwCiAgICByZXR1cm4gdjAKCiAgICA6ZG9fbG9naW4KICAgIGlnZXQtb2JqZWN0IHYwLCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9s
+          b2dpbi9Mb2dpbkFjdGl2aXR5JDQ7LT52YWwkdXNlcm5hbWVFZGl0VGV4dDpMYW5kcm9pZC93aWRnZXQvRWRpdFRleHQ7CiAgICBpbnZva2UtdmlydHVhbCB7
+          djB9LCBMYW5kcm9pZC93aWRnZXQvRWRpdFRleHQ7LT5nZXRUZXh0KClMYW5kcm9pZC90ZXh0L0VkaXRhYmxlOwogICAgbW92ZS1yZXN1bHQtb2JqZWN0IHYw
+          CiAgICBpbnZva2UtdmlydHVhbCB7djB9LCBMamF2YS9sYW5nL09iamVjdDstPnRvU3RyaW5nKClMamF2YS9sYW5nL1N0cmluZzsKICAgIG1vdmUtcmVzdWx0
+          LW9iamVjdCB2MgoKICAgIGlnZXQtb2JqZWN0IHYwLCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JDQ7LT52YWwk
+          cGFzc3dvcmRFZGl0VGV4dDpMYW5kcm9pZC93aWRnZXQvRWRpdFRleHQ7CiAgICBpbnZva2UtdmlydHVhbCB7djB9LCBMYW5kcm9pZC93aWRnZXQvRWRpdFRl
+          eHQ7LT5nZXRUZXh0KClMYW5kcm9pZC90ZXh0L0VkaXRhYmxlOwogICAgbW92ZS1yZXN1bHQtb2JqZWN0IHYwCiAgICBpbnZva2UtdmlydHVhbCB7djB9LCBM
+          amF2YS9sYW5nL09iamVjdDstPnRvU3RyaW5nKClMamF2YS9sYW5nL1N0cmluZzsKICAgIG1vdmUtcmVzdWx0LW9iamVjdCB2MwoKICAgIGlnZXQtb2JqZWN0
+          IHY0LCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JDQ7LT50aGlzJDA6TGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91
+          aS9sb2dpbi9Mb2dpbkFjdGl2aXR5OwogICAgbmV3LWluc3RhbmNlIHYwLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkk
+          U2FmZUxvZ2luOwogICAgY29uc3QvNCB2MSwgMHgwCiAgICBpbnZva2UtZGlyZWN0IHt2MCwgdjQsIHYxLCB2MiwgdjN9LCBMY29tL2FuZHloYXgvdmVlZXBl
+          ZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkkU2FmZUxvZ2luOy0+PGluaXQ+KExjb20vYW5keWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5BY3Rpdml0
+          eTtMYW5kcm9pZC93aWRnZXQvUHJvZ3Jlc3NCYXI7TGphdmEvbGFuZy9TdHJpbmc7TGphdmEvbGFuZy9TdHJpbmc7KVYKCiAgICBuZXctaW5zdGFuY2UgdjEs
+          IExqYXZhL2xhbmcvVGhyZWFkOwogICAgaW52b2tlLWRpcmVjdCB7djEsIHYwfSwgTGphdmEvbGFuZy9UaHJlYWQ7LT48aW5pdD4oTGphdmEvbGFuZy9SdW5u
+          YWJsZTspVgogICAgY29uc3Qtc3RyaW5nIHYwLCAiQmlnZ2VyTG9naW5Xb3JrZXIiCiAgICBpbnZva2UtdmlydHVhbCB7djEsIHYwfSwgTGphdmEvbGFuZy9U
+          aHJlYWQ7LT5zZXROYW1lKExqYXZhL2xhbmcvU3RyaW5nOylWCiAgICBpbnZva2UtdmlydHVhbCB7djF9LCBMamF2YS9sYW5nL1RocmVhZDstPnN0YXJ0KClW
+          CiAgICBjb25zdC80IHYwLCAweDEKICAgIHJldHVybiB2MAouZW5kIG1ldGhvZCcnJwppZiBvbGQgbm90IGluIHM6CiAgICByYWlzZSBTeXN0ZW1FeGl0KCdD
+          b3VsZCBub3QgcGF0Y2ggTG9naW5BY3Rpdml0eSQ0Lm9uRWRpdG9yQWN0aW9uJykKZWRpdG9yLndyaXRlX3RleHQocy5yZXBsYWNlKG9sZCwgbmV3LCAxKSwg
+          ZW5jb2Rpbmc9J3V0Zi04JykKCnNhZmVfbG9naW4gPSByb290IC8gJ3NtYWxpL2NvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5
+          JFNhZmVMb2dpbi5zbWFsaScKc2FmZV9sb2dpbi53cml0ZV90ZXh0KCcnJy5jbGFzcyBmaW5hbCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xv
+          Z2luQWN0aXZpdHkkU2FmZUxvZ2luOwouc3VwZXIgTGphdmEvbGFuZy9PYmplY3Q7Ci5pbXBsZW1lbnRzIExqYXZhL2xhbmcvUnVubmFibGU7CgouZmllbGQg
+          cHJpdmF0ZSBmaW5hbCBhY3Rpdml0eTpMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHk7Ci5maWVsZCBwcml2YXRlIGZpbmFs
+          IHByb2dyZXNzOkxhbmRyb2lkL3dpZGdldC9Qcm9ncmVzc0JhcjsKLmZpZWxkIHByaXZhdGUgZmluYWwgdXNlcm5hbWU6TGphdmEvbGFuZy9TdHJpbmc7Ci5m
+          aWVsZCBwcml2YXRlIGZpbmFsIHBhc3N3b3JkOkxqYXZhL2xhbmcvU3RyaW5nOwoKLm1ldGhvZCBwdWJsaWMgY29uc3RydWN0b3IgPGluaXQ+KExjb20vYW5k
+          eWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5BY3Rpdml0eTtMYW5kcm9pZC93aWRnZXQvUHJvZ3Jlc3NCYXI7TGphdmEvbGFuZy9TdHJpbmc7TGphdmEv
+          bGFuZy9TdHJpbmc7KVYKICAgIC5sb2NhbHMgMAogICAgaW52b2tlLWRpcmVjdCB7cDB9LCBMamF2YS9sYW5nL09iamVjdDstPjxpbml0PigpVgogICAgaXB1
+          dC1vYmplY3QgcDEsIHAwLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkkU2FmZUxvZ2luOy0+YWN0aXZpdHk6TGNvbS9h
+          bmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5OwogICAgaXB1dC1vYmplY3QgcDIsIHAwLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3Vp
+          L2xvZ2luL0xvZ2luQWN0aXZpdHkkU2FmZUxvZ2luOy0+cHJvZ3Jlc3M6TGFuZHJvaWQvd2lkZ2V0L1Byb2dyZXNzQmFyOwogICAgaXB1dC1vYmplY3QgcDMs
+          IHAwLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkkU2FmZUxvZ2luOy0+dXNlcm5hbWU6TGphdmEvbGFuZy9TdHJpbmc7
+          CiAgICBpcHV0LW9iamVjdCBwNCwgcDAsIExjb20vYW5keWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5BY3Rpdml0eSRTYWZlTG9naW47LT5wYXNzd29y
+          ZDpMamF2YS9sYW5nL1N0cmluZzsKICAgIHJldHVybi12b2lkCi5lbmQgbWV0aG9kCgoubWV0aG9kIHB1YmxpYyBydW4oKVYKICAgIC5sb2NhbHMgNQoKICAg
+          IDp0cnlfc3RhcnQKICAgIGlnZXQtb2JqZWN0IHYwLCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JFNhZmVMb2dp
+          bjstPmFjdGl2aXR5Okxjb20vYW5keWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5BY3Rpdml0eTsKICAgIGludm9rZS1zdGF0aWMge3YwfSwgTGNvbS9h
+          bmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5Oy0+YWNjZXNzJDMwMChMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2lu
+          QWN0aXZpdHk7KUxjb20vYW5keWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5WaWV3TW9kZWw7CiAgICBtb3ZlLXJlc3VsdC1vYmplY3QgdjEKICAgIGln
+          ZXQtb2JqZWN0IHYyLCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JFNhZmVMb2dpbjstPnVzZXJuYW1lOkxqYXZh
+          L2xhbmcvU3RyaW5nOwogICAgaWdldC1vYmplY3QgdjMsIHAwLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkkU2FmZUxv
+          Z2luOy0+cGFzc3dvcmQ6TGphdmEvbGFuZy9TdHJpbmc7CiAgICBpbnZva2UtdmlydHVhbCB7djEsIHYyLCB2M30sIExjb20vYW5keWhheC92ZWVlcGVlZW4v
+          dWkvbG9naW4vTG9naW5WaWV3TW9kZWw7LT5sb2dpbihMamF2YS9sYW5nL1N0cmluZztMamF2YS9sYW5nL1N0cmluZzspVgogICAgOnRyeV9lbmQKICAgIC5j
+          YXRjaCBMamF2YS9sYW5nL1Rocm93YWJsZTsgezp0cnlfc3RhcnQgLi4gOnRyeV9lbmR9IDpjYXRjaF9hbGwKICAgIHJldHVybi12b2lkCgogICAgOmNhdGNo
+          X2FsbAogICAgbW92ZS1leGNlcHRpb24gdjQKICAgIGNvbnN0LXN0cmluZyB2MCwgIkJJR0dFUi1MT0dJTiIKICAgIGNvbnN0LXN0cmluZyB2MSwgIkZhbGhh
+          IHByb3RlZ2lkYSBuYSByb3RpbmEgZGUgbG9naW4iCiAgICBpbnZva2Utc3RhdGljIHt2MCwgdjEsIHY0fSwgTGFuZHJvaWQvdXRpbC9Mb2c7LT5lKExqYXZh
+          L2xhbmcvU3RyaW5nO0xqYXZhL2xhbmcvU3RyaW5nO0xqYXZhL2xhbmcvVGhyb3dhYmxlOylJCgogICAgbmV3LWluc3RhbmNlIHYwLCBMYW5kcm9pZC9vcy9I
+          YW5kbGVyOwogICAgaW52b2tlLXN0YXRpYyB7fSwgTGFuZHJvaWQvb3MvTG9vcGVyOy0+Z2V0TWFpbkxvb3BlcigpTGFuZHJvaWQvb3MvTG9vcGVyOwogICAg
+          bW92ZS1yZXN1bHQtb2JqZWN0IHYxCiAgICBpbnZva2UtZGlyZWN0IHt2MCwgdjF9LCBMYW5kcm9pZC9vcy9IYW5kbGVyOy0+PGluaXQ+KExhbmRyb2lkL29z
+          L0xvb3BlcjspVgogICAgbmV3LWluc3RhbmNlIHYxLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkkU2FmZUVycm9yOwog
+          ICAgaWdldC1vYmplY3QgdjIsIHAwLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkkU2FmZUxvZ2luOy0+YWN0aXZpdHk6
+          TGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5OwogICAgaWdldC1vYmplY3QgdjMsIHAwLCBMY29tL2FuZHloYXgvdmVlZXBl
+          ZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkkU2FmZUxvZ2luOy0+cHJvZ3Jlc3M6TGFuZHJvaWQvd2lkZ2V0L1Byb2dyZXNzQmFyOwogICAgaW52b2tlLWRp
+          cmVjdCB7djEsIHYyLCB2M30sIExjb20vYW5keWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5BY3Rpdml0eSRTYWZlRXJyb3I7LT48aW5pdD4oTGNvbS9h
+          bmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5O0xhbmRyb2lkL3dpZGdldC9Qcm9ncmVzc0JhcjspVgogICAgaW52b2tlLXZpcnR1YWwg
+          e3YwLCB2MX0sIExhbmRyb2lkL29zL0hhbmRsZXI7LT5wb3N0KExqYXZhL2xhbmcvUnVubmFibGU7KVoKICAgIHJldHVybi12b2lkCi5lbmQgbWV0aG9kCicn
+          JywgZW5jb2Rpbmc9J3V0Zi04JykKCnNhZmVfZXJyb3IgPSByb290IC8gJ3NtYWxpL2NvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2
+          aXR5JFNhZmVFcnJvci5zbWFsaScKc2FmZV9lcnJvci53cml0ZV90ZXh0KCcnJy5jbGFzcyBmaW5hbCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2lu
+          L0xvZ2luQWN0aXZpdHkkU2FmZUVycm9yOwouc3VwZXIgTGphdmEvbGFuZy9PYmplY3Q7Ci5pbXBsZW1lbnRzIExqYXZhL2xhbmcvUnVubmFibGU7CgouZmll
+          bGQgcHJpdmF0ZSBmaW5hbCBhY3Rpdml0eTpMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHk7Ci5maWVsZCBwcml2YXRlIGZp
+          bmFsIHByb2dyZXNzOkxhbmRyb2lkL3dpZGdldC9Qcm9ncmVzc0JhcjsKCi5tZXRob2QgcHVibGljIGNvbnN0cnVjdG9yIDxpbml0PihMY29tL2FuZHloYXgv
+          dmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHk7TGFuZHJvaWQvd2lkZ2V0L1Byb2dyZXNzQmFyOylWCiAgICAubG9jYWxzIDAKICAgIGludm9rZS1k
+          aXJlY3Qge3AwfSwgTGphdmEvbGFuZy9PYmplY3Q7LT48aW5pdD4oKVYKICAgIGlwdXQtb2JqZWN0IHAxLCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91
+          aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JFNhZmVFcnJvcjstPmFjdGl2aXR5Okxjb20vYW5keWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5BY3Rpdml0eTsK
+          ICAgIGlwdXQtb2JqZWN0IHAyLCBwMCwgTGNvbS9hbmR5aGF4L3ZlZWVwZWVlbi91aS9sb2dpbi9Mb2dpbkFjdGl2aXR5JFNhZmVFcnJvcjstPnByb2dyZXNz
+          OkxhbmRyb2lkL3dpZGdldC9Qcm9ncmVzc0JhcjsKICAgIHJldHVybi12b2lkCi5lbmQgbWV0aG9kCgoubWV0aG9kIHB1YmxpYyBydW4oKVYKICAgIC5sb2Nh
+          bHMgMwogICAgaWdldC1vYmplY3QgdjAsIHAwLCBMY29tL2FuZHloYXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHkkU2FmZUVycm9yOy0+cHJv
+          Z3Jlc3M6TGFuZHJvaWQvd2lkZ2V0L1Byb2dyZXNzQmFyOwogICAgaWYtZXF6IHYwLCA6bm9fcHJvZ3Jlc3MKICAgIGNvbnN0LzE2IHYxLCAweDgKICAgIGlu
+          dm9rZS12aXJ0dWFsIHt2MCwgdjF9LCBMYW5kcm9pZC92aWV3L1ZpZXc7LT5zZXRWaXNpYmlsaXR5KEkpVgogICAgOm5vX3Byb2dyZXNzCiAgICBpZ2V0LW9i
+          amVjdCB2MCwgcDAsIExjb20vYW5keWhheC92ZWVlcGVlZW4vdWkvbG9naW4vTG9naW5BY3Rpdml0eSRTYWZlRXJyb3I7LT5hY3Rpdml0eTpMY29tL2FuZHlo
+          YXgvdmVlZXBlZWVuL3VpL2xvZ2luL0xvZ2luQWN0aXZpdHk7CiAgICBjb25zdC1zdHJpbmcgdjEsICJGYWxoYSBhbyBjb25lY3Rhci4gVmVyaWZpcXVlIGEg
+          RE5TLCBvIHVzdWFyaW8gZSBhIHNlbmhhLiIKICAgIGNvbnN0LzQgdjIsIDB4MQogICAgaW52b2tlLXN0YXRpYyB7djAsIHYxLCB2Mn0sIExhbmRyb2lkL3dp
+          ZGdldC9Ub2FzdDstPm1ha2VUZXh0KExhbmRyb2lkL2NvbnRlbnQvQ29udGV4dDtMamF2YS9sYW5nL0NoYXJTZXF1ZW5jZTtJKUxhbmRyb2lkL3dpZGdldC9U
+          b2FzdDsKICAgIG1vdmUtcmVzdWx0LW9iamVjdCB2MAogICAgaW52b2tlLXZpcnR1YWwge3YwfSwgTGFuZHJvaWQvd2lkZ2V0L1RvYXN0Oy0+c2hvdygpVgog
+          ICAgcmV0dXJuLXZvaWQKLmVuZCBtZXRob2QKJycnLCBlbmNvZGluZz0ndXRmLTgnKQoKcHJpbnQoJ1Y0IHBhdGNoIGFwcGxpZWQgc3VjY2Vzc2Z1bGx5JykK
+          EOF
+          tr -d '[:space:]' < patch_v4.b64 | base64 -d > patch_v4.py
+          python3 patch_v4.py
+
+      - name: Apply Fire Stick keyboard fix V12
+        run: |
+          cat > patch_firestick_v12.py <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('decoded')
+          layout = root / 'res' / 'layout' / 'activity_login.xml'
+          text = layout.read_text(encoding='utf-8', errors='ignore')
+
+          # Username: explicit NEXT action; password: explicit DONE action. Keep single-line fields.
+          def patch_edit(tag, action):
+              tag = re.sub(r'\sandroid:imeOptions="[^"]*"', '', tag)
+              tag = re.sub(r'\sandroid:singleLine="[^"]*"', '', tag)
+              return tag[:-2] + f' android:imeOptions="{action}" android:singleLine="true" />'
+
+          text, n1 = re.subn(r'<EditText\b[^>]*android:id="@id/hax_username"[^>]*/>', lambda m: patch_edit(m.group(0), 'actionNext'), text, count=1)
+          text, n2 = re.subn(r'<EditText\b[^>]*android:id="@id/hax_password"[^>]*/>', lambda m: patch_edit(m.group(0), 'actionDone'), text, count=1)
+          if n1 != 1 or n2 != 1:
+              raise SystemExit(f'Could not patch login fields: username={n1}, password={n2}')
+          layout.write_text(text, encoding='utf-8')
+
+          candidates = list(root.glob('smali*/com/andyhax/veeepeeen/ui/login/LoginActivity$4.smali'))
+          if not candidates:
+              candidates = list(root.glob('smali*/com/andyhax/*/ui/login/LoginActivity$4.smali'))
+          if not candidates:
+              raise SystemExit('LoginActivity$4.smali not found')
+          f = candidates[0]
+          smali = f.read_text(encoding='utf-8')
+          pattern = re.compile(r'\.method public onEditorAction\(Landroid/widget/TextView;ILandroid/view/KeyEvent;\)Z.*?\.end method', re.S)
+          replacement = r'''.method public onEditorAction(Landroid/widget/TextView;ILandroid/view/KeyEvent;)Z
+              .locals 7
+
+              const/4 v0, 0x6
+              if-eq p2, v0, :close_and_login
+              const/4 v0, 0x5
+              if-eq p2, v0, :close_and_login
+              const/4 v0, 0x0
+              return v0
+
+              :close_and_login
+              invoke-virtual {p1}, Landroid/view/View;->getWindowToken()Landroid/os/IBinder;
+              move-result-object v0
+
+              iget-object v5, p0, Lcom/andyhax/veeepeeen/ui/login/LoginActivity$4;->this$0:Lcom/andyhax/veeepeeen/ui/login/LoginActivity;
+              const-string v1, "input_method"
+              invoke-virtual {v5, v1}, Landroid/content/Context;->getSystemService(Ljava/lang/String;)Ljava/lang/Object;
+              move-result-object v1
+              check-cast v1, Landroid/view/inputmethod/InputMethodManager;
+              if-eqz v1, :clear_focus
+              const/4 v2, 0x0
+              invoke-virtual {v1, v0, v2}, Landroid/view/inputmethod/InputMethodManager;->hideSoftInputFromWindow(Landroid/os/IBinder;I)Z
+
+              :clear_focus
+              invoke-virtual {p1}, Landroid/view/View;->clearFocus()V
+
+              iget-object v0, p0, Lcom/andyhax/veeepeeen/ui/login/LoginActivity$4;->val$usernameEditText:Landroid/widget/EditText;
+              invoke-virtual {v0}, Landroid/widget/EditText;->getText()Landroid/text/Editable;
+              move-result-object v0
+              invoke-virtual {v0}, Ljava/lang/Object;->toString()Ljava/lang/String;
+              move-result-object v3
+
+              iget-object v0, p0, Lcom/andyhax/veeepeeen/ui/login/LoginActivity$4;->val$passwordEditText:Landroid/widget/EditText;
+              invoke-virtual {v0}, Landroid/widget/EditText;->getText()Landroid/text/Editable;
+              move-result-object v0
+              invoke-virtual {v0}, Ljava/lang/Object;->toString()Ljava/lang/String;
+              move-result-object v4
+
+              new-instance v0, Lcom/andyhax/veeepeeen/ui/login/LoginActivity$SafeLogin;
+              const/4 v1, 0x0
+              invoke-direct {v0, v5, v1, v3, v4}, Lcom/andyhax/veeepeeen/ui/login/LoginActivity$SafeLogin;-><init>(Lcom/andyhax/veeepeeen/ui/login/LoginActivity;Landroid/widget/ProgressBar;Ljava/lang/String;Ljava/lang/String;)V
+
+              new-instance v1, Ljava/lang/Thread;
+              invoke-direct {v1, v0}, Ljava/lang/Thread;-><init>(Ljava/lang/Runnable;)V
+              const-string v0, "BiggerLoginWorker"
+              invoke-virtual {v1, v0}, Ljava/lang/Thread;->setName(Ljava/lang/String;)V
+              invoke-virtual {v1}, Ljava/lang/Thread;->start()V
+              const/4 v0, 0x1
+              return v0
+          .end method'''
+          smali2, n = pattern.subn(replacement, smali, count=1)
+          if n != 1:
+              raise SystemExit('Editor action method not patched')
+          f.write_text(smali2, encoding='utf-8')
+          print('Fire Stick V12 keyboard patch applied:', f)
+          PY
+          python3 patch_firestick_v12.py
+
+      - name: Rebuild APK
+        run: java -jar apktool.jar b decoded -o biggerpro-v12-unsigned.apk
+
+      - name: Create signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore biggerpro-v12.keystore \
+            -storepass biggerpro123 \
+            -keypass biggerpro123 \
+            -alias biggerpro \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Grupo Bigger, OU=Android, O=Grupo Bigger, L=Colatina, ST=ES, C=BR"
+
+      - name: Align and sign
+        run: |
+          zipalign -f -p 4 biggerpro-v12-unsigned.apk biggerpro-v12-aligned.apk
+          apksigner sign \
+            --ks biggerpro-v12.keystore \
+            --ks-pass pass:biggerpro123 \
+            --key-pass pass:biggerpro123 \
+            --out BIGGER-PRO-LOGIN-FIX-V12.apk \
+            biggerpro-v12-aligned.apk
+          apksigner verify --verbose BIGGER-PRO-LOGIN-FIX-V12.apk
+
+      - name: Upload V12 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIGGER-PRO-LOGIN-FIX-V12-APK
+          path: BIGGER-PRO-LOGIN-FIX-V12.apk
