@@ -1,0 +1,325 @@
+name: BIGGER PRO - Login Fix V5 Tela de Espera
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget zipalign apksigner python3
+          wget -q https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -O apktool.jar
+
+      - name: Reassemble APK
+        run: |
+          cat biggerpro.apk.part00 biggerpro.apk.part01 > biggerpro.apk
+          ls -lh biggerpro.apk
+
+      - name: Decode APK
+        run: java -jar apktool.jar d -f biggerpro.apk -o decoded
+
+      - name: Apply V5 patch
+        run: |
+          cat > patch_v5.py <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('decoded')
+
+          manifest = root / 'AndroidManifest.xml'
+          text = manifest.read_text(encoding='utf-8', errors='ignore')
+          if 'android:usesCleartextTraffic=' in text:
+              text = re.sub(r'android:usesCleartextTraffic="[^"]*"', 'android:usesCleartextTraffic="true"', text)
+          else:
+              text = text.replace('<application ', '<application android:usesCleartextTraffic="true" ', 1)
+          if 'android:networkSecurityConfig=' not in text:
+              text = text.replace('<application ', '<application android:networkSecurityConfig="@xml/network_security_config" ', 1)
+          manifest.write_text(text, encoding='utf-8')
+
+          xml_dir = root / 'res' / 'xml'
+          xml_dir.mkdir(parents=True, exist_ok=True)
+          (xml_dir / 'network_security_config.xml').write_text("""<?xml version=\"1.0\" encoding=\"utf-8\"?>
+<network-security-config>
+    <base-config cleartextTrafficPermitted=\"true\">
+        <trust-anchors>
+            <certificates src=\"system\" />
+            <certificates src=\"user\" />
+        </trust-anchors>
+    </base-config>
+</network-security-config>
+""", encoding='utf-8')
+
+          login_xml = root / 'res' / 'layout' / 'activity_login.xml'
+          s = login_xml.read_text(encoding='utf-8', errors='ignore')
+          s = s.replace('android:text="MAC"', 'android:text="Aguarde um momento...&#10;Estamos localizando seu servidor.&#10;Isso pode levar alguns segundos."', 1)
+          s = s.replace('android:textColor="#ffffffff" android:id="@id/txt_mac"', 'android:textColor="#ffffffff" android:textSize="16.0sp" android:textStyle="bold" android:id="@id/txt_mac"', 1)
+          s = s.replace('android:id="@id/txt_mac" android:layout_width="wrap_content" android:layout_height="wrap_content"', 'android:id="@id/txt_mac" android:layout_width="300.0dip" android:layout_height="wrap_content" android:gravity="center" android:textAlignment="center"', 1)
+          s = s.replace('<ProgressBar android:layout_gravity="center" android:id="@id/hax_loading" android:visibility="gone"', '<ProgressBar android:layout_gravity="center" android:id="@id/hax_loading" android:visibility="gone" android:indeterminate="true"', 1)
+          login_xml.write_text(s, encoding='utf-8')
+
+          live = root / 'smali/androidx/lifecycle/MutableLiveData.smali'
+          s = live.read_text(encoding='utf-8')
+          pat = re.compile(r'\.method public setValue\(Ljava/lang/Object;\)V.*?\.end method', re.S)
+          replacement = '''.method public setValue(Ljava/lang/Object;)V
+    .locals 2
+    .annotation system Ldalvik/annotation/Signature;
+        value = {
+            "(TT;)V"
+        }
+    .end annotation
+
+    invoke-static {}, Landroid/os/Looper;->myLooper()Landroid/os/Looper;
+    move-result-object v0
+    invoke-static {}, Landroid/os/Looper;->getMainLooper()Landroid/os/Looper;
+    move-result-object v1
+    if-ne v0, v1, :bg_thread
+    invoke-super {p0, p1}, Landroidx/lifecycle/LiveData;->setValue(Ljava/lang/Object;)V
+    return-void
+
+    :bg_thread
+    invoke-super {p0, p1}, Landroidx/lifecycle/LiveData;->postValue(Ljava/lang/Object;)V
+    return-void
+.end method'''
+          s2, n = pat.subn(replacement, s, count=1)
+          if n != 1:
+              raise SystemExit('Could not patch MutableLiveData.setValue')
+          live.write_text(s2, encoding='utf-8')
+
+          click = root / 'smali/com/andyhax/veeepeeeen/ui/login/LoginActivity$5.smali'
+          s = click.read_text(encoding='utf-8')
+          old = '.method public native onClick(Landroid/view/View;)V\n.end method'
+          new = '''.method public onClick(Landroid/view/View;)V
+    .locals 6
+
+    iget-object v0, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$5;->val$loadingProgressBar:Landroid/widget/ProgressBar;
+    const/4 v1, 0x0
+    invoke-virtual {v0, v1}, Landroid/view/View;->setVisibility(I)V
+
+    iget-object v5, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$5;->this$0:Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;
+    const v0, 0x7f0b03de
+    invoke-virtual {v5, v0}, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;->findViewById(I)Landroid/view/View;
+    move-result-object v0
+    check-cast v0, Landroid/widget/TextView;
+    if-eqz v0, :skip_text
+    const-string v2, "Aguarde um momento...\nEstamos localizando seu servidor.\nIsso pode levar alguns segundos."
+    invoke-virtual {v0, v2}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    invoke-virtual {v0, v1}, Landroid/view/View;->setVisibility(I)V
+    :skip_text
+
+    iget-object v2, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$5;->val$usernameEditText:Landroid/widget/EditText;
+    invoke-virtual {v2}, Landroid/widget/EditText;->getText()Landroid/text/Editable;
+    move-result-object v2
+    invoke-virtual {v2}, Ljava/lang/Object;->toString()Ljava/lang/String;
+    move-result-object v3
+
+    iget-object v2, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$5;->val$passwordEditText:Landroid/widget/EditText;
+    invoke-virtual {v2}, Landroid/widget/EditText;->getText()Landroid/text/Editable;
+    move-result-object v2
+    invoke-virtual {v2}, Ljava/lang/Object;->toString()Ljava/lang/String;
+    move-result-object v4
+
+    new-instance v0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;
+    iget-object v1, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$5;->val$loadingProgressBar:Landroid/widget/ProgressBar;
+    invoke-direct {v0, v5, v1, v3, v4}, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;-><init>(Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;Landroid/widget/ProgressBar;Ljava/lang/String;Ljava/lang/String;)V
+
+    new-instance v1, Ljava/lang/Thread;
+    invoke-direct {v1, v0}, Ljava/lang/Thread;-><init>(Ljava/lang/Runnable;)V
+    const-string v0, "BiggerLoginWorker"
+    invoke-virtual {v1, v0}, Ljava/lang/Thread;->setName(Ljava/lang/String;)V
+    invoke-virtual {v1}, Ljava/lang/Thread;->start()V
+    return-void
+.end method'''
+          if old not in s:
+              raise SystemExit('Could not patch LoginActivity$5.onClick')
+          click.write_text(s.replace(old, new, 1), encoding='utf-8')
+
+          editor = root / 'smali/com/andyhax/veeepeeeen/ui/login/LoginActivity$4.smali'
+          s = editor.read_text(encoding='utf-8')
+          old = '.method public native onEditorAction(Landroid/widget/TextView;ILandroid/view/KeyEvent;)Z\n.end method'
+          new = '''.method public onEditorAction(Landroid/widget/TextView;ILandroid/view/KeyEvent;)Z
+    .locals 6
+
+    iget-object v5, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$4;->this$0:Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;
+    const v0, 0x7f0b03de
+    invoke-virtual {v5, v0}, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;->findViewById(I)Landroid/view/View;
+    move-result-object v0
+    check-cast v0, Landroid/widget/TextView;
+    if-eqz v0, :skip_text
+    const/4 v1, 0x0
+    const-string v2, "Aguarde um momento...\nEstamos localizando seu servidor.\nIsso pode levar alguns segundos."
+    invoke-virtual {v0, v2}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    invoke-virtual {v0, v1}, Landroid/view/View;->setVisibility(I)V
+    :skip_text
+
+    iget-object v0, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$4;->val$usernameEditText:Landroid/widget/EditText;
+    invoke-virtual {v0}, Landroid/widget/EditText;->getText()Landroid/text/Editable;
+    move-result-object v0
+    invoke-virtual {v0}, Ljava/lang/Object;->toString()Ljava/lang/String;
+    move-result-object v3
+
+    iget-object v0, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$4;->val$passwordEditText:Landroid/widget/EditText;
+    invoke-virtual {v0}, Landroid/widget/EditText;->getText()Landroid/text/Editable;
+    move-result-object v0
+    invoke-virtual {v0}, Ljava/lang/Object;->toString()Ljava/lang/String;
+    move-result-object v4
+
+    new-instance v0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;
+    const/4 v1, 0x0
+    invoke-direct {v0, v5, v1, v3, v4}, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;-><init>(Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;Landroid/widget/ProgressBar;Ljava/lang/String;Ljava/lang/String;)V
+
+    new-instance v1, Ljava/lang/Thread;
+    invoke-direct {v1, v0}, Ljava/lang/Thread;-><init>(Ljava/lang/Runnable;)V
+    const-string v0, "BiggerLoginWorker"
+    invoke-virtual {v1, v0}, Ljava/lang/Thread;->setName(Ljava/lang/String;)V
+    invoke-virtual {v1}, Ljava/lang/Thread;->start()V
+    const/4 v0, 0x1
+    return v0
+.end method'''
+          if old not in s:
+              raise SystemExit('Could not patch LoginActivity$4.onEditorAction')
+          editor.write_text(s.replace(old, new, 1), encoding='utf-8')
+
+          safe_login = root / 'smali/com/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin.smali'
+          safe_login.write_text('''.class final Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;
+.super Ljava/lang/Object;
+.implements Ljava/lang/Runnable;
+
+.field private final activity:Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;
+.field private final progress:Landroid/widget/ProgressBar;
+.field private final username:Ljava/lang/String;
+.field private final password:Ljava/lang/String;
+
+.method public constructor <init>(Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;Landroid/widget/ProgressBar;Ljava/lang/String;Ljava/lang/String;)V
+    .locals 0
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+    iput-object p1, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;->activity:Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;
+    iput-object p2, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;->progress:Landroid/widget/ProgressBar;
+    iput-object p3, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;->username:Ljava/lang/String;
+    iput-object p4, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;->password:Ljava/lang/String;
+    return-void
+.end method
+
+.method public run()V
+    .locals 5
+
+    :try_start
+    iget-object v0, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;->activity:Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;
+    invoke-static {v0}, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;->access$300(Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;)Lcom/andyhax/veeepeeeen/ui/login/LoginViewModel;
+    move-result-object v1
+    iget-object v2, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;->username:Ljava/lang/String;
+    iget-object v3, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;->password:Ljava/lang/String;
+    invoke-virtual {v1, v2, v3}, Lcom/andyhax/veeepeeeen/ui/login/LoginViewModel;->login(Ljava/lang/String;Ljava/lang/String;)V
+    :try_end
+    .catch Ljava/lang/Throwable; {:try_start .. :try_end} :catch_all
+    return-void
+
+    :catch_all
+    move-exception v4
+    const-string v0, "BIGGER-LOGIN"
+    const-string v1, "Falha protegida na rotina de login"
+    invoke-static {v0, v1, v4}, Landroid/util/Log;->e(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Throwable;)I
+
+    new-instance v0, Landroid/os/Handler;
+    invoke-static {}, Landroid/os/Looper;->getMainLooper()Landroid/os/Looper;
+    move-result-object v1
+    invoke-direct {v0, v1}, Landroid/os/Handler;-><init>(Landroid/os/Looper;)V
+    new-instance v1, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeError;
+    iget-object v2, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;->activity:Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;
+    iget-object v3, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeLogin;->progress:Landroid/widget/ProgressBar;
+    invoke-direct {v1, v2, v3}, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeError;-><init>(Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;Landroid/widget/ProgressBar;)V
+    invoke-virtual {v0, v1}, Landroid/os/Handler;->post(Ljava/lang/Runnable;)Z
+    return-void
+.end method
+''', encoding='utf-8')
+
+          safe_error = root / 'smali/com/andyhax/veeepeeeen/ui/login/LoginActivity$SafeError.smali'
+          safe_error.write_text('''.class final Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeError;
+.super Ljava/lang/Object;
+.implements Ljava/lang/Runnable;
+
+.field private final activity:Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;
+.field private final progress:Landroid/widget/ProgressBar;
+
+.method public constructor <init>(Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;Landroid/widget/ProgressBar;)V
+    .locals 0
+    invoke-direct {p0}, Ljava/lang/Object;-><init>()V
+    iput-object p1, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeError;->activity:Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;
+    iput-object p2, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeError;->progress:Landroid/widget/ProgressBar;
+    return-void
+.end method
+
+.method public run()V
+    .locals 4
+    iget-object v0, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeError;->progress:Landroid/widget/ProgressBar;
+    if-eqz v0, :no_progress
+    const/16 v1, 0x8
+    invoke-virtual {v0, v1}, Landroid/view/View;->setVisibility(I)V
+    :no_progress
+    iget-object v0, p0, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity$SafeError;->activity:Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;
+    const v1, 0x7f0b03de
+    invoke-virtual {v0, v1}, Lcom/andyhax/veeepeeeen/ui/login/LoginActivity;->findViewById(I)Landroid/view/View;
+    move-result-object v1
+    check-cast v1, Landroid/widget/TextView;
+    if-eqz v1, :skip_text
+    const-string v2, "Falha ao conectar.\nVerifique a DNS, o usuário e a senha."
+    invoke-virtual {v1, v2}, Landroid/widget/TextView;->setText(Ljava/lang/CharSequence;)V
+    const/4 v2, 0x0
+    invoke-virtual {v1, v2}, Landroid/view/View;->setVisibility(I)V
+    :skip_text
+    const-string v2, "Falha ao conectar. Verifique a DNS, o usuário e a senha."
+    const/4 v3, 0x1
+    invoke-static {v0, v2, v3}, Landroid/widget/Toast;->makeText(Landroid/content/Context;Ljava/lang/CharSequence;I)Landroid/widget/Toast;
+    move-result-object v0
+    invoke-virtual {v0}, Landroid/widget/Toast;->show()V
+    return-void
+.end method
+''', encoding='utf-8')
+
+          print('V5 patch applied successfully')
+          PY
+          python3 patch_v5.py
+
+      - name: Rebuild APK
+        run: java -jar apktool.jar b decoded -o biggerpro-v5-unsigned.apk
+
+      - name: Create signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore biggerpro-v5.keystore \
+            -storepass biggerpro123 \
+            -keypass biggerpro123 \
+            -alias biggerpro \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Grupo Bigger, OU=Android, O=Grupo Bigger, L=Colatina, ST=ES, C=BR"
+
+      - name: Align and sign
+        run: |
+          zipalign -f -p 4 biggerpro-v5-unsigned.apk biggerpro-v5-aligned.apk
+          apksigner sign \
+            --ks biggerpro-v5.keystore \
+            --ks-pass pass:biggerpro123 \
+            --key-pass pass:biggerpro123 \
+            --out BIGGER-PRO-LOGIN-FIX-V5.apk \
+            biggerpro-v5-aligned.apk
+          apksigner verify --verbose BIGGER-PRO-LOGIN-FIX-V5.apk
+
+      - name: Upload V5 APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIGGER-PRO-LOGIN-FIX-V5-APK
+          path: BIGGER-PRO-LOGIN-FIX-V5.apk
