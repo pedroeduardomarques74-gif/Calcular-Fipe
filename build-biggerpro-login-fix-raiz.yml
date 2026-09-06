@@ -1,0 +1,109 @@
+name: BIGGER PRO - Login Fix V3 Raiz
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y wget zipalign apksigner python3
+          wget -q https://github.com/iBotPeaches/Apktool/releases/download/v2.11.1/apktool_2.11.1.jar -O apktool.jar
+
+      - name: Reassemble original APK
+        run: |
+          cat biggerpro.apk.part00 biggerpro.apk.part01 > biggerpro.apk
+          ls -lh biggerpro.apk
+
+      - name: Decode APK
+        run: |
+          java -jar apktool.jar d -f biggerpro.apk -o decoded
+
+      - name: Apply network/login stability patch
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+
+          root = Path('decoded')
+          manifest = root / 'AndroidManifest.xml'
+          text = manifest.read_text(encoding='utf-8', errors='ignore')
+
+          if 'android:usesCleartextTraffic=' in text:
+              text = re.sub(r'android:usesCleartextTraffic="[^"]*"', 'android:usesCleartextTraffic="true"', text)
+          else:
+              text = text.replace('<application ', '<application android:usesCleartextTraffic="true" ', 1)
+
+          if 'android:networkSecurityConfig=' not in text:
+              text = text.replace('<application ', '<application android:networkSecurityConfig="@xml/network_security_config" ', 1)
+
+          manifest.write_text(text, encoding='utf-8')
+
+          xml_dir = root / 'res' / 'xml'
+          xml_dir.mkdir(parents=True, exist_ok=True)
+          (xml_dir / 'network_security_config.xml').write_text('''<?xml version="1.0" encoding="utf-8"?>
+          <network-security-config>
+              <base-config cleartextTrafficPermitted="true">
+                  <trust-anchors>
+                      <certificates src="system" />
+                      <certificates src="user" />
+                  </trust-anchors>
+              </base-config>
+          </network-security-config>
+          ''', encoding='utf-8')
+
+          print('Patch applied successfully')
+          PY
+
+      - name: Rebuild APK
+        run: |
+          java -jar apktool.jar b decoded -o biggerpro-login-fix-unsigned.apk
+
+      - name: Create signing key
+        run: |
+          keytool -genkeypair -v \
+            -keystore biggerpro-test.keystore \
+            -storepass biggerpro123 \
+            -keypass biggerpro123 \
+            -alias biggerpro \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Grupo Bigger, OU=Android, O=Grupo Bigger, L=Colatina, ST=ES, C=BR"
+
+      - name: Align and sign
+        run: |
+          zipalign -f -p 4 biggerpro-login-fix-unsigned.apk biggerpro-login-fix-aligned.apk
+          apksigner sign \
+            --ks biggerpro-test.keystore \
+            --ks-pass pass:biggerpro123 \
+            --key-pass pass:biggerpro123 \
+            --out BIGGER-PRO-LOGIN-FIX-V3.apk \
+            biggerpro-login-fix-aligned.apk
+          apksigner verify --verbose BIGGER-PRO-LOGIN-FIX-V3.apk
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIGGER-PRO-LOGIN-FIX-V3-APK
+          path: BIGGER-PRO-LOGIN-FIX-V3.apk
+
+      - name: Upload decoded project for diagnosis
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: BIGGER-PRO-DECOMPILED-V3
+          path: decoded/
